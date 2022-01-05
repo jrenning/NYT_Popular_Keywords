@@ -1,5 +1,4 @@
 import config 
-import json
 import requests 
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -10,70 +9,58 @@ url = f'https://api.nytimes.com/svc/mostpopular/v2/viewed/1.json?api-key={config
 response1 = requests.get(url).json()
 
 
-popular_titles = []
-
-for i in range(len(response1['results'])):
-    popular_titles.append(response1['results'][i]['title'])
-
-
-'''for i in range(len(popular_titles)):
-    print(f'{i+1}. {popular_titles[i]}')'''
-
-
-'''print(response1['results'][1].keys())
-    print(response1['results'][1]['adx_keywords'])'''
-
-
-popular_keywords = []
-
-for i in range(len(response1['results'])):
-    popular_keywords.append(response1['results'][i]['adx_keywords'])
-
-
-'''for i in range(len(popular_keywords)):
-        print(f'{i+1}. {popular_keywords[i]}')'''
-
-popular_keywords_list = []
-popular_keywords_list2 = []
-popular_keywords_list3 = []
-
-
-# seperate keywords 
-for i in range(len(popular_keywords)):
-    popular_keywords_list.append(popular_keywords[i].split(';'))
-
-# flatten lists 
-for lists in popular_keywords_list:
-    for items in lists:
-        popular_keywords_list2.append(items)
-
-for i in range(len(popular_keywords_list2)):
-    popular_keywords_list3 += (popular_keywords_list2[i].split())
+def sort_data(response,response_key,delimter=None):
+    response_list = []
+    for i,_ in enumerate(response['results']):
+        response_list.append(response['results'][i][response_key])
+       
+    if response_key == 'adx_keywords':
+        response_string_list = str(response_list).split(delimter)
+        response_string_list = str(response_string_list).split()
+        return response_string_list
     
-popular_keywords_list3 = (sorted(popular_keywords_list3))
-keyword_count = dict(Counter(popular_keywords_list3))
+    return response_list
+    
 
-keyword_count2 = dict(sorted(keyword_count.items(),key=lambda item: item[1]))
+def clean_data(response_string_list):
+    
+    keyword_count = dict(Counter(response_string_list))
+    
+    sorted_keyword_count = dict(sorted(keyword_count.items(),key=lambda item: item[1]))
+    
+    for key in sorted_keyword_count.copy():
+        if re.search("^\W",key):
+            sorted_keyword_count.pop(key)
+        elif key == 'and' or key == 'of' or key=='the':
+            sorted_keyword_count.pop(key)
+                
+    return sorted_keyword_count
 
-# matching that gets rid of special characters and common keywords 
-for key in keyword_count2.copy():
-    if re.search("^\W",key):
-        keyword_count2.pop(key)
-    elif key == 'and' or key == 'of':
-        keyword_count2.pop(key)
+
+title_response_string_list = sort_data(response1,'title')
+print('Popular Titles')
+for i,_ in enumerate(title_response_string_list):
+    print(f'{i+1}. {title_response_string_list[i]}')
+
+keyword_response_string_list = sort_data(response1,'adx_keywords',';')
+sorted_keyword_count = clean_data(keyword_response_string_list)
 
 
-keys = list(keyword_count2)[-10:]
-values = list(keyword_count2.values())[-10:]
+keys = list(sorted_keyword_count)[-10:]
+keys = [re.sub(r'\W','',key) for key in keys]   
 
-for i in range(len(keys)):
+    
+values = list(sorted_keyword_count.values())[-10:]
+
+print('\n')
+for i,_ in enumerate(keys):
     print(f'{i+1}. {keys[-(i+1)]} was a keyword {values[-(i+1)]} times in the popular NYT articles today')
 
 figure(figsize=(12,9), dpi=80)
 bar = plt.bar(keys,values)
 plt.xlabel('Key Words')
 plt.ylabel('Occurances of Word')
-plt.title('Most Popular Keywords in Top 20 NYT Articles')
+plt.title('Most Popular Keywords in Top 20 NYT Articles Today')
 
 
 
